@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Upload, Trash2, Share2, Download, ChevronRight } from 'lucide-react';
+import React, { useState } from "react";
+import { Upload, Trash2, Share2, Download, ChevronRight } from "lucide-react";
 import sodium from "libsodium-wrappers";
-import { form, u } from 'framer-motion/client';
-import { type } from 'node:os';
-import axios, { AxiosRequestConfig } from 'axios';
-import FileList from './components/ui/FileList';
+// import { form, u } from 'framer-motion/client';
+// import { type } from 'node:os';
+import axios, { AxiosRequestConfig } from "axios";
+import FileList from "./components/ui/FileList";
 
 interface File {
   id: string;
@@ -15,82 +15,99 @@ interface File {
 
 const Dashboard: React.FC = () => {
   const [files, setFiles] = useState<File[]>([
-    { id: '1', name: 'project_proposal.pdf', size: '2.3 MB', uploadDate: '2023-05-21' },
-    { id: '2', name: 'financial_report.xlsx', size: '1.7 MB', uploadDate: '2023-05-20' },
-    { id: '3', name: 'presentation.pptx', size: '5.1 MB', uploadDate: '2023-05-19' },
+    {
+      id: "1",
+      name: "project_proposal.pdf",
+      size: "2.3 MB",
+      uploadDate: "2023-05-21",
+    },
+    {
+      id: "2",
+      name: "financial_report.xlsx",
+      size: "1.7 MB",
+      uploadDate: "2023-05-20",
+    },
+    {
+      id: "3",
+      name: "presentation.pptx",
+      size: "5.1 MB",
+      uploadDate: "2023-05-19",
+    },
   ]);
-  const [filename1, setfilename1] = useState('');
+
+  const [filename1, setfilename1] = useState("");
   const [sharingFileId, setSharingFileId] = useState<string | null>(null);
-  const [shareEmail, setShareEmail] = useState('');
+  const [shareEmail, setShareEmail] = useState("");
   const [isReceiving, setIsReceiving] = useState(false);
   const [receiveStep, setReceiveStep] = useState(1);
-  const [receiveEmail, setReceiveEmail] = useState('');
-  const [receiveFileName, setReceiveFileName] = useState('');
-  const [securityKey1, setSecurityKey1] = useState('');
-  const [securityKey2, setSecurityKey2] = useState('');
-  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
-  const [downloadKey, setDownloadKey] = useState('');
-  const [downloadKey2, setDownloadKey2] = useState('');
-const [fileExtention, setfileExtention] = useState('');
-const [encryptedFileUrl, setEncryptedFileUrl] = useState<string | null>(null); 
-const [keyHex, setKeyHex] = useState<string>(""); 
-const [nonceHex, setNonceHex] = useState<string>(""); 
-let key;
-let nonce;
-const [textBox1, setTextBox1] = useState('');
-const [textBox2, setTextBox2] = useState('');
-const [showTextBoxes, setShowTextBoxes] = useState(false);
+  const [receiveEmail, setReceiveEmail] = useState("");
+  const [receiveFileName, setReceiveFileName] = useState("");
+  const [securityKey1, setSecurityKey1] = useState("");
+  const [securityKey2, setSecurityKey2] = useState("");
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(
+    null
+  );
+  const [downloadKey, setDownloadKey] = useState("");
+  const [downloadKey2, setDownloadKey2] = useState("");
+  const [fileExtention, setfileExtention] = useState("");
+  const [encryptedFileUrl, setEncryptedFileUrl] = useState<string | null>(null);
+  const [keyHex, setKeyHex] = useState<string>("");
+  const [nonceHex, setNonceHex] = useState<string>("");
+  let key;
+  let nonce;
+  const [textBox1, setTextBox1] = useState("");
+  const [textBox2, setTextBox2] = useState("");
+  const [showTextBoxes, setShowTextBoxes] = useState(false);
 
-const encryptFile = async (file: any, fileExtension: string) => {
+  const encryptFile = async (file: any, fileExtension: string) => {
     await sodium.ready;
-  
+
     const fileReader = new FileReader();
     fileReader.onload = async () => {
       const fileData = new Uint8Array(fileReader.result as ArrayBuffer);
-  
+
       // Generate a random key and nonce
-       key = sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES);
-       nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
-  setTextBox1(sodium.to_hex(key))
-  setTextBox2(sodium.to_hex(nonce))
+      key = sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES);
+      nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+      setTextBox1(sodium.to_hex(key));
+      setTextBox2(sodium.to_hex(nonce));
       // Encrypt the file content
       const encryptedData = sodium.crypto_secretbox_easy(fileData, nonce, key);
-  
+
       // Store the key and nonce securely (client-side or in a secure vault)
       // In this example, we are just logging them but you should store them securely.
       console.log("Key and nonce are stored securely, do not send them!");
-  
+
       // Send only the encrypted data and file metadata (e.g., fileExtension)
-      
+
       const response = await axios.post("http://localhost:8000/api/upload", {
         encryptedData: encryptedData,
         fileExtension: fileExtension,
-       
+      },{
+        withCredentials: true,
       });
-  
-      
     };
-  
+
     fileReader.readAsArrayBuffer(file);
   };
-    
-  async function f(){
-    const response = await axios.get("http://localhost:3000/give");
-    console.log(response.data);
-    const encryptedDataArray = new Uint8Array(Object.values(response.data));
 
-      // Log the received encrypted data
-      console.log("Received encrypted data:", encryptedDataArray);
-      decryptFile(encryptedDataArray,nonce,key)
-  }
+  
+ 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    
     const file = event.target.files?.[0];
     if (file) {
-      const fileName = file.name; 
+      const fileName = file.name;
       setfilename1(fileName);
-      const fileExtension = fileName.split('.').pop()?.toLowerCase(); // Extracting the extension of the file
-      const forbiddenExtensions = ["exe", "bat", "cmd", "sh", "msi", "com", "vbs"];
+      const fileExtension = fileName.split(".").pop()?.toLowerCase(); // Extracting the extension of the file
+      const forbiddenExtensions = [
+        "exe",
+        "bat",
+        "cmd",
+        "sh",
+        "msi",
+        "com",
+        "vbs",
+      ];
       if (event.target.files?.length > 1) {
         alert("You can only upload up to 1 files at a time.");
         return;
@@ -104,133 +121,122 @@ const encryptFile = async (file: any, fileExtension: string) => {
       if (fileExtension) {
         console.log("File extension:", fileExtension);
         setfileExtention(fileExtension);
-        console.log(2)
-       encryptFile(file, fileExtension);
-       setShowTextBoxes(true); // Show text boxes after successful upload
-
-    } else {
+        console.log(2);
+        encryptFile(file, fileExtension);
+        setShowTextBoxes(true);
+      } else {
         console.log("Could not determine file extension");
       }
     }
   };
-  const decryptFile = async (encryptedData: any, nonce: any, key: any, fileExtension: string = 'pdf') => {
+  const decryptFile = async (encryptedData: any, nonce: any, key: any) => {
     await sodium.ready;
     console.log("Decryption started");
-  console.log(encryptedData);
-    // Decrypt the file data
-    
-    const decryptedData = sodium.crypto_secretbox_open_easy(encryptedData, nonce, key);
-    if (!decryptedData) {
-        console.error("Decryption failed!");
-        return null;
-      }
 
-    
-  
+    const decryptedData = sodium.crypto_secretbox_open_easy(
+      encryptedData,
+      nonce,
+      key
+    );
+    if (!decryptedData) {
+      console.error("Decryption failed!");
+      return null;
+    }
+
     console.log("Decryption done", decryptedData);
-  
-    // Convert the decrypted binary data back to a Blob
     const decryptedBlob = new Blob([decryptedData]);
-  
-    // Create a download URL for the Blob
+
     const downloadUrl = URL.createObjectURL(decryptedBlob);
-  
-    // Create a download link element (but don't show it to the user)
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = downloadUrl;
-  
-    // Set the filename with the specified extension (defaulting to .pdf)
-    const fileName = `decrypted_file.${fileExtension}`; // You can customize the name here
+
+    const fileName = `decrypted_file.txt`;
     a.download = fileName;
-  
-    // Append the link to the body (not necessary, but sometimes needed for triggering)
+
     document.body.appendChild(a);
-  
-    // Trigger the download automatically
+
     a.click();
-  
-    // Clean up the URL object after download
+
     URL.revokeObjectURL(downloadUrl);
-  
-    // Optionally, remove the link element from the DOM
+
     document.body.removeChild(a);
   };
+
   
 
-  const handleDelete = (id: string) => {
-    setFiles(files.filter(file => file.id !== id));
-  };
+  
 
-  const handleShare = (id: string) => {
-    setSharingFileId(id);
-    setShareEmail('');
-  };
-
-  const handleShareSubmit =async () => {
+  const handleShareSubmit = async () => {
     console.log(`Sharing file ${sharingFileId} with ${shareEmail}`);
-const g =files[Number(sharingFileId)-1].name
-console.log(g)
+    const g = files[Number(sharingFileId) - 1].name;
+    console.log(g);
     const response = await axios.post("http://localhost:8000/api/upload", {
-        filename:g,
-        tempemail:shareEmail
-        
-    })
+      filename: g,
+      tempemail: shareEmail,
+    },{
+      withCredentials: true,
+    });
     setSharingFileId(null);
-    setShareEmail('');
+    setShareEmail("");
   };
 
-  const  handleDownload = (id: string) => {
+  const handleDownload = (id: string) => {
     setDownloadingFileId(id);
-    setDownloadKey('');
-    setDownloadKey2('');
-    
-    
+    setDownloadKey("");
+    setDownloadKey2("");
   };
 
-  const handleDownloadSubmit = async() => {
-    console.log(`Downloading file ${downloadingFileId} with keys ${downloadKey} and ${downloadKey2}`);
-    // Here you would implement the actual download logic
-    setDownloadingFileId(null);
-    setDownloadKey('');
-    setDownloadKey2('');
+  const handleDownloadSubmit = async () => {
+    console.log(
+      `Downloading file ${downloadingFileId} with keys ${downloadKey} and ${downloadKey2}`
+    );
 
     const result = await axios.post("http://localhost:8000/api/download", {
-      id: 5
-    })
-    console.log(result.data) 
+      id: 20,
+    },{
+      withCredentials: true,
+    });
+    console.log(result.data);
     const encryptedDataArray = new Uint8Array(Object.values(result.data));
-    if(downloadKey!==''&&downloadKey2!==''){
-      await decryptFile(encryptedDataArray,downloadKey2,downloadKey)
+    console.log(encryptedDataArray);
+
+    const nonceArray =
+      typeof downloadKey2 === "string"
+        ? sodium.from_hex(downloadKey2)
+        : new Uint8Array(downloadKey2);
+
+    const keyArray =
+      typeof downloadKey === "string"
+        ? sodium.from_hex(downloadKey)
+        : new Uint8Array(downloadKey);
+
+    if (downloadKey !== "" && downloadKey2 !== "") {
+      await decryptFile(encryptedDataArray, nonceArray, keyArray);
     }
+
+
+    setDownloadingFileId(null);
+    setDownloadKey("");
+    setDownloadKey2("");
+
     
   };
 
-  const handleReceiveNext = () => {
-    setReceiveStep(2);
-  };
+ 
 
-  const handleReceiveFile = () => {
-    console.log('Receiving file:', { receiveEmail, receiveFileName, securityKey1, securityKey2 });
-    setIsReceiving(false);
-    setReceiveStep(1);
-    setReceiveEmail('');
-    setReceiveFileName('');
-    setSecurityKey1('');
-    setSecurityKey2('');
-  };
-
+ 
   const handleDownloadTextBoxes = () => {
-  const content = `secret key:\n${textBox1}\n\nnonce:\n${textBox2}`;
-  const blob = new Blob([content], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'text_boxes_content.txt';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
+    const content = `secret key:\n${textBox1}\n\nnonce:\n${textBox2}`;
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "text_boxes_content.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -243,16 +249,32 @@ console.log(g)
       <main className="container mx-auto mt-8 px-4">
         <div className="grid md:grid-cols-2 gap-8">
           <section className="bg-gray-800 p-6 rounded-lg shadow-xl">
-            <h2 className="text-xl font-semibold mb-4 text-purple-400">Upload Files</h2>
+            <h2 className="text-xl font-semibold mb-4 text-purple-400">
+              Upload Files
+            </h2>
             <div className="flex flex-col space-y-4">
               <div className="flex items-center justify-center w-full">
-                <label htmlFor="file-upload" className="flex flex-col items-center justify-center w-full h-64 border-2 border-purple-400 border-dashed rounded-lg cursor-pointer bg-gray-700 hover:bg-gray-600 transition-colors">
+                <label
+                  htmlFor="file-upload"
+                  className="flex flex-col items-center justify-center w-full h-64 border-2 border-purple-400 border-dashed rounded-lg cursor-pointer bg-gray-700 hover:bg-gray-600 transition-colors"
+                >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="w-10 h-10 mb-3 text-purple-400" />
-                    <p className="mb-2 text-sm text-purple-300"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                    <p className="text-xs text-gray-400">Any file type (MAX. 100MB)</p>
+                    <p className="mb-2 text-sm text-purple-300">
+                      <span className="font-semibold">Click to upload</span> or
+                      drag and drop
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Any file type (MAX. 100MB)
+                    </p>
                   </div>
-                  <input id="file-upload" type="file" className="hidden" onChange={handleFileUpload} multiple />
+                  <input
+                    id="file-upload"
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    multiple
+                  />
                 </label>
               </div>
               {showTextBoxes && (
@@ -287,8 +309,8 @@ console.log(g)
             <FileList
               files={files}
               onDownload={handleDownload}
-              onShare={handleShare}
-              onDelete={handleDelete}
+              // onShare={handleShare}
+              // onDelete={handleDelete}
             />
             {sharingFileId && (
               <div className="mt-4 p-4 bg-indigo-50 rounded-md">
@@ -365,7 +387,7 @@ console.log(g)
                     className="w-full p-2 border rounded-md"
                   />
                   <button
-                    onClick={handleReceiveNext}
+                    // onClick={handleReceiveNext}
                     className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors flex items-center"
                   >
                     Next
@@ -389,7 +411,7 @@ console.log(g)
                     className="w-full p-2 border rounded-md"
                   />
                   <button
-                    onClick={handleReceiveFile}
+                    // onClick={handleReceiveFile}
                     className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors flex items-center"
                   >
                     Access File
@@ -406,4 +428,3 @@ console.log(g)
 };
 
 export default Dashboard;
-

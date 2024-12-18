@@ -12,10 +12,10 @@ import verifyToken from "./verifyToken.js";
  dotenv.config();
  const app = express();
 
-console.log(process.env.DB_DATABASE)
+// console.log(process.env.DB_DATABASE)
 const port = process.env.PORT || 8000;
 
-
+app.use(cookieParser());
 app.use(express.json({ limit: "500mb" })); // JSON payloads
 app.use(express.urlencoded({ limit: "500mb", extended: true })); 
 
@@ -24,12 +24,7 @@ app.use(cors({
     origin: 'http://localhost:5173', // Your React frontend URL
     credentials: true, // Allow credentials (cookies)
   }));
-// app.use(cors({ 
-//     origin: 'http://localhost:5173', // Your frontend URL
-//     methods: 'GET,POST',
-//     allowedHeaders: 'Content-Type, Authorization'
-// }));
-app.use(cookieParser());
+
 
 app.get("/", async (req, res) => {
     try {
@@ -47,11 +42,11 @@ app.get("/", async (req, res) => {
 const saltRounds = 10;
 
 app.post('/api/signup', async (req, res) => {
-    const { name, email, password } = req.body;
+    const { fullName, email, password } = req.body;
     console.log(req.body)
     try {
         // Check if user already exists based on name
-        const checkResult = await pool.query("SELECT * FROM users WHERE name = $1", [name]);
+        const checkResult = await pool.query("SELECT * FROM users WHERE name = $1", [fullName]);
 
         if (checkResult.rows.length > 0) {
             // If user exists, redirect to home
@@ -69,7 +64,7 @@ app.post('/api/signup', async (req, res) => {
             // Insert the new user into the database
             const result = await pool.query(
                 "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING *",
-                [name, email, hash]
+                [fullName, email, hash]
             );
             
             const user = result.rows[0];
@@ -115,10 +110,10 @@ app.post('/api/login', async (req, res) => {
         );
 
         res.cookie('token', token, {
-            httpOnly: true, // Prevents JavaScript access
-            secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+            httpOnly: true,  // Prevents client-side JS from accessing the cookie
+            secure: process.env.NODE_ENV === 'production', // Use secure in production  
             maxAge: 3600000, // 1 hour expiration
-            sameSite: 'None', // Allows cross-origin requests
+            sameSite: 'strict', // Allows cross-origin requests
           });
           
            
@@ -139,7 +134,7 @@ app.post('/api/login', async (req, res) => {
 
 
 //upload file
-app.post("/api/upload", async (req, res) => {
+app.post("/api/upload",verifyToken, async (req, res) => {
     try {
         // Parse the incoming request body
         const { encryptedData, fileExtension } = req.body;
@@ -157,15 +152,15 @@ app.post("/api/upload", async (req, res) => {
 
         // Convert encryptedData from base64 to Buffer (if sent as base64)
         
-        const encryptedDataArray = new Uint8Array(Object.values(encryptedData));
-        const encryptedDataBuffer = Buffer.from(encryptedDataArray, "base64");
+        // const encryptedDataArray = new Uint8Array(Object.values(encryptedData));
+        // const encryptedDataBuffer = Buffer.from(encryptedDataArray, "base64");
         // console.log(encryptedDataArray)
         // Insert file information into the database
         
-        console.log(filename, encryptedDataBuffer, user_id, ownerEmail, tempEmail, fileExtension)
+        console.log(filename, encryptedData, user_id, ownerEmail, tempEmail, fileExtension)
         const result = await pool.query(
             "INSERT INTO files (filename, file_data, user_id, owner_email,temp_email, extention) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-            [filename, encryptedDataBuffer, user_id, ownerEmail, tempEmail, fileExtension]
+            [filename, encryptedData, user_id, ownerEmail, tempEmail, fileExtension]
         );
         // const result = await pool.query(
         //     "INSERT INTO files (filename, file_data, user_id, owner_email, temp_email, extension) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
@@ -216,42 +211,22 @@ app.post("/api/upload/details", verifyToken, async (req, res) => {
     }
 });
 
-//upload file
-
-
-//getfile
-app.get("/api/give", async (req, res) => {
-    try {
-      const encryptedData = a.encryptedData; // Assuming this is a Uint8Array or ArrayBuffer
-
-      // Check if encryptedData is of type Uint8Array or ArrayBuffer
-        // Send only the encrypted data as raw binary data
-        console.log("sent")
-         // Indicate raw binary data
-        res.send(encryptedData); // Send the encrypted data buffer
-
-    } catch (err) {
-      console.error("Error processing request:", err);
-      res.status(500).send("Server error");
-    }
-  });
-
-//getfile
-
-
-  
-
-  app.post("/api/download", async (req,res)=>{
+  app.post("/api/download",verifyToken, async (req,res)=>{
     const {id}= req.body
+    // const id = 16;
     const result = await pool.query(
         "SELECT * FROM files WHERE id = $1",
         [id]
     );
     res.send(result.rows[0].file_data)
+    // res.send(result.rows[0].extention)
     console.log(result.rows[0].file_data);
 })
 
-// Routes
+app.post("/api/verify-token",verifyToken, async (req,res)=>{
+    const {userId, userEmail} = req.body;
+    res.status(200).json({userId, userEmail})
+})
 
 
 app.listen(port, () => {
